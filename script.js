@@ -26,7 +26,15 @@
     const host = window.location.hostname;
     const href = window.location.href;
 
-    // 1. TRÊN LINKHUONGDAN.ONLINE: Tìm ID và chuyển sang Google
+    // Hàm giả lập click sâu (cho cả Shadow DOM)
+    function deepClick(element) {
+        if (!element) return;
+        ['mouseenter', 'mouseover', 'mousedown', 'mouseup', 'click'].forEach(evt => {
+            element.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, view: window }));
+        });
+    }
+
+    // 1. TRÊN LINKHUONGDAN.ONLINE
     if (host.includes('linkhuongdan.online')) {
         if (href.includes('?qq=complete')) return;
 
@@ -36,9 +44,9 @@
             const targetDomain = REDIRECT_CONFIG[pageId];
 
             if (targetDomain) {
-                localStorage.setItem('TASK_PAGE_ID', pageId);
-                localStorage.setItem('TASK_TARGET_DOMAIN', targetDomain);
-                localStorage.setItem('TASK_STATE', 'SEARCH_GOOGLE');
+                GM_setValue('TASK_PAGE_ID', pageId);
+                GM_setValue('TASK_TARGET_DOMAIN', targetDomain);
+                GM_setValue('TASK_STATE', 'SEARCH_GOOGLE');
 
                 window.location.href = `https://www.google.com/search?q=${encodeURIComponent(targetDomain)}`;
             }
@@ -46,50 +54,78 @@
         return;
     }
 
-    // 2. TRÊN GOOGLE: Tìm link chuẩn và bấm vào
+    // 2. TRÊN GOOGLE SEARCH
     if (host.includes('google.com')) {
-        if (localStorage.getItem('TASK_STATE') === 'SEARCH_GOOGLE') {
-            const targetDomain = localStorage.getItem('TASK_TARGET_DOMAIN');
+        if (GM_getValue('TASK_STATE') === 'SEARCH_GOOGLE') {
+            const targetDomain = GM_getValue('TASK_TARGET_DOMAIN');
             const links = Array.from(document.querySelectorAll('#rso a[href]'));
             
             const matchLink = links.find(a => a.href.toLowerCase().includes(targetDomain.toLowerCase()));
 
             if (matchLink) {
-                localStorage.setItem('TASK_STATE', 'ON_TARGET');
+                GM_setValue('TASK_STATE', 'ON_TARGET');
                 window.location.href = matchLink.href;
             }
         }
         return;
     }
 
-    // 3. TRÊN TRANG ĐÍCH: Bấm nút kích hoạt
-    if (localStorage.getItem('TASK_STATE') === 'ON_TARGET') {
+    // 3. TRÊN TRANG ĐÍCH (Tìm nút & Đếm ngầm chuẩn thời gian thực)
+    if (GM_getValue('TASK_STATE') === 'ON_TARGET') {
+        const targetDomain = GM_getValue('TASK_TARGET_DOMAIN', '');
+        
+        if (targetDomain && !host.includes(targetDomain.replace('https://', '').replace('http://', ''))) {
+            return;
+        }
+
+        // Tự động cuộn trang nhẹ để kích hoạt LazyLoad của nút
+        let scrollCount = 0;
+        const scrollInterval = setInterval(() => {
+            window.scrollBy(0, 400);
+            scrollCount++;
+            if (scrollCount > 10) clearInterval(scrollInterval);
+        }, 300);
+
         const checkAndClick = setInterval(() => {
-            // Tìm phần tử chứa nút theo cấu trúc trafficvip / svg-btn
-            const btn = document.querySelector('[data-q][data-qq]') || 
+            // Quét cả DOM thường và các phần tử liên quan
+            let btn = document.querySelector('[data-q][data-qq]') || 
                         document.querySelector('svg-btn') || 
                         document.querySelector('.footer-text div[class*="q-"]');
 
+            if (!btn) {
+                btn = Array.from(document.querySelectorAll('button, a, div, span')).find(el => {
+                    const txt = (el.innerText || '').toLowerCase();
+                    return (txt.includes('lấy mã') || txt.includes('get code') || txt.includes('nhận mã')) && el.offsetHeight > 0;
+                });
+            }
+
             if (btn) {
                 clearInterval(checkAndClick);
+                clearInterval(scrollInterval);
                 
-                // Cuộn tới nút
                 btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-                // Bắn event Click giả lập trực tiếp
-                ['mousedown', 'mouseup', 'click'].forEach(evt => {
-                    btn.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, view: window }));
-                });
-
-                // Chờ đếm ngược 60s rồi quay về hoàn thành
-                const pageId = localStorage.getItem('TASK_PAGE_ID');
                 setTimeout(() => {
-                    localStorage.removeItem('TASK_STATE');
-                    localStorage.removeItem('TASK_TARGET_DOMAIN');
-                    localStorage.removeItem('TASK_PAGE_ID');
-                    window.location.href = `https://linkhuongdan.online/${pageId}/?qq=complete`;
-                }, 61000);
+                    deepClick(btn);
+                    const subBtn = btn.querySelector('svg-btn') || btn.parentElement;
+                    if (subBtn) deepClick(subBtn);
+
+                    // Đếm ngược theo timestamp thực tế (Không bị hoãn khi ẩn Tab)
+                    const endTime = Date.now() + 61000;
+                    const bgTimer = setInterval(() => {
+                        if (Date.now() >= endTime) {
+                            clearInterval(bgTimer);
+                            const pageId = GM_getValue('TASK_PAGE_ID');
+                            
+                            GM_deleteValue('TASK_STATE');
+                            GM_deleteValue('TASK_TARGET_DOMAIN');
+                            GM_deleteValue('TASK_PAGE_ID');
+
+                            window.location.href = `https://linkhuongdan.online/${pageId}/?qq=complete`;
+                        }
+                    }, 500);
+                }, 1000);
             }
-        }, 1000);
+        }, 800);
     }
 })();
