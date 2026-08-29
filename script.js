@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    console.log('[TaskEngine] 🚀 Script.js đã được tải và bắt đầu thực thi!');
+    console.log('[TaskEngine] 🚀 Script.js v22 đã được khởi chạy!');
 
     const REDIRECT_CONFIG = {
         "210-2": "vokoo.io",
@@ -70,7 +70,7 @@
         popup.id = 'task-pro-popup';
         popup.innerHTML = `
             <div id="task-pro-header">
-                <span id="task-pro-title">⚡ Task Engine v21</span>
+                <span id="task-pro-title">⚡ Task Engine v22</span>
                 <div>
                     <button id="pop-btn-reset" class="task-btn task-btn-danger">Reset</button>
                     <button id="pop-btn-reload" class="task-btn">🔄</button>
@@ -85,19 +85,23 @@
                     <div style="font-size: 9px; color: #94a3b8;">TRẠNG THÁI:</div>
                     <div id="task-status-val" style="font-size: 11px; font-weight: bold; color: #e2e8f0;">Đang khởi tạo...</div>
                 </div>
-                <div id="task-log-box">> Đã tạo Popup UI thành công...</div>
+                <div id="task-log-box">> Đã kết nối engine...</div>
             </div>
         `;
         document.body.appendChild(popup);
 
         document.getElementById('pop-btn-reload').onclick = () => window.location.reload();
         document.getElementById('pop-btn-reset').onclick = () => {
-            GM_deleteValue('TASK_STATE');
-            GM_deleteValue('TASK_TARGET_DOMAIN');
-            GM_deleteValue('TASK_PAGE_ID');
-            alert('Đã xóa bộ nhớ tạm!');
+            clearTaskMemory();
+            alert('Đã dọn dẹp toàn bộ dữ liệu tạm!');
             window.location.reload();
         };
+    }
+
+    function clearTaskMemory() {
+        GM_deleteValue('TASK_STATE');
+        GM_deleteValue('TASK_TARGET_DOMAIN');
+        GM_deleteValue('TASK_PAGE_ID');
     }
 
     function updateStatus(txt) {
@@ -134,21 +138,26 @@
         const host = window.location.hostname;
         const href = window.location.href;
 
-        console.log('[TaskEngine] Host hiện tại:', host);
-
+        // A. TRÊN TRANG LINKHUONGDAN
         if (host.includes('linkhuongdan.online')) {
-            if (href.includes('?qq=complete')) {
+            // Kiểm tra xem có tham số hoàn tất không
+            if (href.includes('qq=complete')) {
                 updateStatus('Nhiệm vụ hoàn tất!');
                 updateTimer('0 Giây');
+                clearTaskMemory();
                 return;
             }
 
-            const pathMatches = window.location.pathname.match(/\/([0-9a-zA-Z-]+)\/?$/);
-            if (pathMatches && pathMatches[1]) {
+            // Lấy ID bài viết từ URL chính xác
+            const pathname = window.location.pathname;
+            const pathMatches = pathname.match(/\/([0-9a-zA-Z-]+)\/?$/);
+
+            if (pathMatches && pathMatches[1] && pathMatches[1] !== 'linkhuongdan.online') {
                 const pageId = pathMatches[1];
                 const targetDomain = REDIRECT_CONFIG[pageId];
 
                 if (targetDomain) {
+                    clearTaskMemory(); // Xóa sạch dữ liệu cũ trước khi bắt đầu nhiệm vụ mới
                     GM_setValue('TASK_PAGE_ID', pageId);
                     GM_setValue('TASK_TARGET_DOMAIN', targetDomain);
                     GM_setValue('TASK_STATE', 'SEARCH_GOOGLE');
@@ -158,19 +167,22 @@
 
                     setTimeout(() => {
                         window.location.href = `https://www.google.com/search?q=${encodeURIComponent(targetDomain)}`;
-                    }, 1000);
+                    }, 1200);
                 } else {
                     updateStatus(`Chưa map ID: ${pageId}`);
                 }
             } else {
-                updateStatus('Trang chủ LinkHuongDan');
+                updateStatus('Trang chủ / Chưa chọn task');
             }
             return;
         }
 
+        // B. TRÊN GOOGLE SEARCH
         if (host.includes('google.com')) {
             if (GM_getValue('TASK_STATE') === 'SEARCH_GOOGLE') {
                 const targetDomain = GM_getValue('TASK_TARGET_DOMAIN');
+                if (!targetDomain) return;
+
                 updateStatus(`Tìm web: ${targetDomain}`);
 
                 const links = Array.from(document.querySelectorAll('#rso a[href]'));
@@ -178,18 +190,23 @@
 
                 if (matchLink) {
                     GM_setValue('TASK_STATE', 'ON_TARGET');
-                    addLog('Mở liên kết đích...');
+                    addLog('Thấy link! Mở trang đích...');
                     setTimeout(() => { window.location.href = matchLink.href; }, 800);
+                } else {
+                    addLog('Đang tìm liên kết phù hợp...');
                 }
             }
             return;
         }
 
+        // C. TRÊN TRANG ĐÍCH
         if (GM_getValue('TASK_STATE') === 'ON_TARGET') {
             const targetDomain = GM_getValue('TASK_TARGET_DOMAIN', '');
-            if (targetDomain && !host.includes(targetDomain.replace('https://', '').replace('http://', ''))) return;
+            if (!targetDomain || !host.includes(targetDomain.replace('https://', '').replace('http://', ''))) {
+                return;
+            }
 
-            updateStatus('Đang quét tìm nút...');
+            updateStatus('Đang quét tìm nút lấy mã...');
 
             const checkInterval = setInterval(() => {
                 let btn = document.querySelector('[data-q][data-qq]') || 
@@ -222,12 +239,9 @@
                             if (remaining <= 0) {
                                 clearInterval(timer);
                                 const pageId = GM_getValue('TASK_PAGE_ID');
+                                clearTaskMemory();
 
-                                GM_deleteValue('TASK_STATE');
-                                GM_deleteValue('TASK_TARGET_DOMAIN');
-                                GM_deleteValue('TASK_PAGE_ID');
-
-                                updateStatus('Chuyển hoàn thành...');
+                                updateStatus('Hoàn thành! Chuyển trang...');
                                 window.location.href = `https://linkhuongdan.online/${pageId}/?qq=complete`;
                             }
                         }, 500);
