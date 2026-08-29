@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    // Bảng cấu hình Map ID
+    // 1. BẢNG MÁP MÃ ID VỚI DOMAIN
     const REDIRECT_CONFIG = {
         "210-2": "vokoo.io",
         "219-2": "lv88.name",
@@ -26,15 +26,15 @@
     const host = window.location.hostname;
     const href = window.location.href;
 
-    // Hàm giả lập click sâu (cho cả Shadow DOM)
-    function deepClick(element) {
-        if (!element) return;
+    // GIẢ LẬP CLICK THỰC TẾ
+    function deepClick(el) {
+        if (!el) return;
         ['mouseenter', 'mouseover', 'mousedown', 'mouseup', 'click'].forEach(evt => {
-            element.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, view: window }));
+            el.dispatchEvent(new MouseEvent(evt, { bubbles: true, cancelable: true, view: window }));
         });
     }
 
-    // 1. TRÊN LINKHUONGDAN.ONLINE
+    // A. XỬ LÝ TẠI LINKHUONGDAN.ONLINE
     if (host.includes('linkhuongdan.online')) {
         if (href.includes('?qq=complete')) return;
 
@@ -48,13 +48,14 @@
                 GM_setValue('TASK_TARGET_DOMAIN', targetDomain);
                 GM_setValue('TASK_STATE', 'SEARCH_GOOGLE');
 
+                console.log('[Task] Đã tìm thấy ID:', pageId, '-> Chuyển Google:', targetDomain);
                 window.location.href = `https://www.google.com/search?q=${encodeURIComponent(targetDomain)}`;
             }
         }
         return;
     }
 
-    // 2. TRÊN GOOGLE SEARCH
+    // B. XỬ LÝ TẠI GOOGLE SEARCH
     if (host.includes('google.com')) {
         if (GM_getValue('TASK_STATE') === 'SEARCH_GOOGLE') {
             const targetDomain = GM_getValue('TASK_TARGET_DOMAIN');
@@ -64,13 +65,14 @@
 
             if (matchLink) {
                 GM_setValue('TASK_STATE', 'ON_TARGET');
+                console.log('[Task] Đã bấm link Google:', matchLink.href);
                 window.location.href = matchLink.href;
             }
         }
         return;
     }
 
-    // 3. TRÊN TRANG ĐÍCH (Tìm nút & Đếm ngầm chuẩn thời gian thực)
+    // C. XỬ LÝ TẠI TRANG ĐÍCH (MỞ NÚT VÀ ĐẾM NỔI/NGẦM)
     if (GM_getValue('TASK_STATE') === 'ON_TARGET') {
         const targetDomain = GM_getValue('TASK_TARGET_DOMAIN', '');
         
@@ -78,7 +80,7 @@
             return;
         }
 
-        // Tự động cuộn trang nhẹ để kích hoạt LazyLoad của nút
+        // Tự động cuộn xuống trang để nạp thẻ chứa nút
         let scrollCount = 0;
         const scrollInterval = setInterval(() => {
             window.scrollBy(0, 400);
@@ -87,7 +89,7 @@
         }, 300);
 
         const checkAndClick = setInterval(() => {
-            // Quét cả DOM thường và các phần tử liên quan
+            // Nhận diện thẻ chứa trafficvip / svg-btn / data-q
             let btn = document.querySelector('[data-q][data-qq]') || 
                         document.querySelector('svg-btn') || 
                         document.querySelector('.footer-text div[class*="q-"]');
@@ -110,7 +112,9 @@
                     const subBtn = btn.querySelector('svg-btn') || btn.parentElement;
                     if (subBtn) deepClick(subBtn);
 
-                    // Đếm ngược theo timestamp thực tế (Không bị hoãn khi ẩn Tab)
+                    console.log('[Task] Đã bấm nút! Đang đếm ngược 60 giây...');
+
+                    // Đếm thời gian thực (Hoạt động cả khi ẩn Tab)
                     const endTime = Date.now() + 61000;
                     const bgTimer = setInterval(() => {
                         if (Date.now() >= endTime) {
@@ -121,6 +125,7 @@
                             GM_deleteValue('TASK_TARGET_DOMAIN');
                             GM_deleteValue('TASK_PAGE_ID');
 
+                            console.log('[Task] Hoàn tất! Quay về linkhuongdan...');
                             window.location.href = `https://linkhuongdan.online/${pageId}/?qq=complete`;
                         }
                     }, 500);
