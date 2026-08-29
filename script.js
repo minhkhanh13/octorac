@@ -1,52 +1,29 @@
-// ==UserScript==
-// @name         Auto Task Bypass Engine
-// @namespace    http://tampermonkey.net/
-// @version      19.0
-// @description  Hệ thống xử lý tự động nhiệm vụ, tối ưu luồng không chiếm con trỏ chuột
-// @author       NASA
-// @match        *://linkhuongdan.online/*
-// @match        *://www.google.com/*
-// @match        *://www.google.com.vn/*
-// @match        *://*/*
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM_deleteValue
-// @run-at       document-idle
-// ==/UserScript==
-
 (function () {
     'use strict';
 
-    // ------------------------------------------------------------------------
-    // 1. CẤU HÌNH BẢNG MÁP REDIRECTS (JSON MAP)
-    // ------------------------------------------------------------------------
+    console.log('[TaskEngine] 🚀 Script.js đã được tải và bắt đầu thực thi!');
+
     const REDIRECT_CONFIG = {
-        "enabled": true,
-        "redirects": {
-            "210-2": "vokoo.io",
-            "219-2": "lv88.name",
-            "170-2": "00h19.com",
-            "220-2": "bytesized.tv",
-            "227-2": "jonan.cc",
-            "188-2": "24hesports.com",
-            "216-2": "motocascos.com.co",
-            "17937-2": "24hesports.com",
-            "222-3": "riobet-223.bet",
-            "185-2": "789winsh.com",
-            "223-3": "riobet-223.bet",
-            "206-2": "hitclub8.jp.net",
-            "200-2": "luck8.kitchen",
-            "228-2": "espn-comactivate.us",
-            "160-2": "hughesauto.us",
-            "193-2": "qlaro.io",
-            "208-2": "qlaro.io",
-            "237-2": "bytesized.tv"
-        }
+        "210-2": "vokoo.io",
+        "219-2": "lv88.name",
+        "170-2": "00h19.com",
+        "220-2": "bytesized.tv",
+        "227-2": "jonan.cc",
+        "188-2": "24hesports.com",
+        "216-2": "motocascos.com.co",
+        "17937-2": "24hesports.com",
+        "222-3": "riobet-223.bet",
+        "185-2": "789winsh.com",
+        "223-3": "riobet-223.bet",
+        "206-2": "hitclub8.jp.net",
+        "200-2": "luck8.kitchen",
+        "228-2": "espn-comactivate.us",
+        "160-2": "hughesauto.us",
+        "193-2": "qlaro.io",
+        "208-2": "qlaro.io",
+        "237-2": "bytesized.tv"
     };
 
-    // ------------------------------------------------------------------------
-    // 2. TẠO GIAO DIỆN POPUP ĐIỀU KHIỂN (UI ENGINE)
-    // ------------------------------------------------------------------------
     function injectStyle() {
         if (document.getElementById('task-pro-style')) return;
         const style = document.createElement('style');
@@ -65,7 +42,6 @@
                 font-family: Arial, sans-serif !important;
                 border: 1px solid #334155 !important;
                 overflow: hidden !important;
-                pointer-events: auto !important;
             }
             #task-pro-header {
                 background: #1e293b;
@@ -75,51 +51,13 @@
                 justify-content: space-between;
                 align-items: center;
             }
-            #task-pro-title {
-                font-weight: bold;
-                font-size: 12px;
-                color: #38bdf8;
-            }
-            .task-btn {
-                background: #475569;
-                color: #fff;
-                border: none;
-                padding: 2px 6px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 11px;
-            }
-            .task-btn-danger {
-                background: #ef4444;
-            }
-            #task-pro-body {
-                padding: 10px;
-            }
-            #task-timer-box {
-                background: #1e293b;
-                border-radius: 6px;
-                padding: 8px;
-                text-align: center;
-                margin-bottom: 8px;
-                border: 1px solid #334155;
-            }
-            #task-timer-val {
-                font-size: 22px;
-                font-weight: bold;
-                color: #f59e0b;
-                font-family: monospace;
-            }
-            #task-log-box {
-                background: #020617;
-                border-radius: 4px;
-                padding: 6px;
-                font-size: 10px;
-                color: #34d399;
-                font-family: monospace;
-                height: 55px;
-                overflow-y: auto;
-                border: 1px solid #1e293b;
-            }
+            #task-pro-title { font-weight: bold; font-size: 12px; color: #38bdf8; }
+            .task-btn { background: #475569; color: #fff; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+            .task-btn-danger { background: #ef4444; }
+            #task-pro-body { padding: 10px; }
+            #task-timer-box { background: #1e293b; border-radius: 6px; padding: 8px; text-align: center; margin-bottom: 8px; border: 1px solid #334155; }
+            #task-timer-val { font-size: 22px; font-weight: bold; color: #f59e0b; font-family: monospace; }
+            #task-log-box { background: #020617; border-radius: 4px; padding: 6px; font-size: 10px; color: #34d399; font-family: monospace; height: 55px; overflow-y: auto; border: 1px solid #1e293b; }
         `;
         document.head.appendChild(style);
     }
@@ -132,7 +70,7 @@
         popup.id = 'task-pro-popup';
         popup.innerHTML = `
             <div id="task-pro-header">
-                <span id="task-pro-title">⚡ Task Engine v19</span>
+                <span id="task-pro-title">⚡ Task Engine v21</span>
                 <div>
                     <button id="pop-btn-reset" class="task-btn task-btn-danger">Reset</button>
                     <button id="pop-btn-reload" class="task-btn">🔄</button>
@@ -145,9 +83,9 @@
                 </div>
                 <div style="margin-bottom: 6px;">
                     <div style="font-size: 9px; color: #94a3b8;">TRẠNG THÁI:</div>
-                    <div id="task-status-val" style="font-size: 11px; font-weight: bold; color: #e2e8f0;">Đang tải...</div>
+                    <div id="task-status-val" style="font-size: 11px; font-weight: bold; color: #e2e8f0;">Đang khởi tạo...</div>
                 </div>
-                <div id="task-log-box">> Đã kích hoạt script...</div>
+                <div id="task-log-box">> Đã tạo Popup UI thành công...</div>
             </div>
         `;
         document.body.appendChild(popup);
@@ -157,7 +95,7 @@
             GM_deleteValue('TASK_STATE');
             GM_deleteValue('TASK_TARGET_DOMAIN');
             GM_deleteValue('TASK_PAGE_ID');
-            alert('Đã xóa dữ liệu tạm!');
+            alert('Đã xóa bộ nhớ tạm!');
             window.location.reload();
         };
     }
@@ -184,35 +122,20 @@
         }
     }
 
-    // ------------------------------------------------------------------------
-    // 3. XỬ LÝ CLICK CHÍNH XÁC (KHÔNG CUỘN TRANG NÊN KHÔNG BỊ BẮT MẤT CHUỘT)
-    // ------------------------------------------------------------------------
     function triggerCleanClick(element) {
         if (!element) return;
-        
-        // Gọi thẳng phương thức click native mà không dùng Scroll
-        try {
-            element.click();
-        } catch (e) {}
-
+        try { element.click(); } catch (e) {}
         ['mousedown', 'mouseup', 'click'].forEach(evtName => {
-            const evt = new MouseEvent(evtName, {
-                bubbles: true,
-                cancelable: true,
-                view: window
-            });
-            element.dispatchEvent(evt);
+            element.dispatchEvent(new MouseEvent(evtName, { bubbles: true, cancelable: true, view: window }));
         });
     }
 
-    // ------------------------------------------------------------------------
-    // 4. LUỒNG THỰC THI CHÍNH
-    // ------------------------------------------------------------------------
     function main() {
         const host = window.location.hostname;
         const href = window.location.href;
 
-        // A. TRÊN LINKHUONGDAN.ONLINE
+        console.log('[TaskEngine] Host hiện tại:', host);
+
         if (host.includes('linkhuongdan.online')) {
             if (href.includes('?qq=complete')) {
                 updateStatus('Nhiệm vụ hoàn tất!');
@@ -223,7 +146,7 @@
             const pathMatches = window.location.pathname.match(/\/([0-9a-zA-Z-]+)\/?$/);
             if (pathMatches && pathMatches[1]) {
                 const pageId = pathMatches[1];
-                const targetDomain = REDIRECT_CONFIG.redirects[pageId];
+                const targetDomain = REDIRECT_CONFIG[pageId];
 
                 if (targetDomain) {
                     GM_setValue('TASK_PAGE_ID', pageId);
@@ -239,11 +162,12 @@
                 } else {
                     updateStatus(`Chưa map ID: ${pageId}`);
                 }
+            } else {
+                updateStatus('Trang chủ LinkHuongDan');
             }
             return;
         }
 
-        // B. TRÊN GOOGLE SEARCH
         if (host.includes('google.com')) {
             if (GM_getValue('TASK_STATE') === 'SEARCH_GOOGLE') {
                 const targetDomain = GM_getValue('TASK_TARGET_DOMAIN');
@@ -255,20 +179,15 @@
                 if (matchLink) {
                     GM_setValue('TASK_STATE', 'ON_TARGET');
                     addLog('Mở liên kết đích...');
-                    setTimeout(() => {
-                        window.location.href = matchLink.href;
-                    }, 800);
+                    setTimeout(() => { window.location.href = matchLink.href; }, 800);
                 }
             }
             return;
         }
 
-        // C. TRÊN TRANG ĐÍCH
         if (GM_getValue('TASK_STATE') === 'ON_TARGET') {
             const targetDomain = GM_getValue('TASK_TARGET_DOMAIN', '');
-            if (targetDomain && !host.includes(targetDomain.replace('https://', '').replace('http://', ''))) {
-                return;
-            }
+            if (targetDomain && !host.includes(targetDomain.replace('https://', '').replace('http://', ''))) return;
 
             updateStatus('Đang quét tìm nút...');
 
@@ -295,7 +214,6 @@
 
                         updateStatus('Đang đếm ngược...');
                         
-                        // Đếm ngược bằng mốc thời gian thực
                         const endTime = Date.now() + 61000;
                         const timer = setInterval(() => {
                             const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
@@ -319,5 +237,5 @@
         }
     }
 
-    setTimeout(main, 1000);
+    setTimeout(main, 500);
 })();
